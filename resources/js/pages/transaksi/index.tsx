@@ -696,7 +696,7 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
 
                                         <Table className="border-collapse">
                                     <TableHeader>
-                                        <TableRow className="bg-gray-50 dark:bg-[#0A0A0A]/80">
+                                        <TableRow className="bg-gray-50 dark:bg-[#111111]">
                                             <TableHead className="text-primary font-medium py-3">Nama Layanan</TableHead>
                                             <TableHead className="text-right text-primary font-medium py-3">Harga</TableHead>
                                             <TableHead className="text-right text-primary font-medium py-3">Jumlah</TableHead>
@@ -713,8 +713,8 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
                                         ) : (
                                             popularLayanan.slice(0, 5).map((item, index) => (
                                                 <TableRow key={item.id_layanan} className={index % 2 === 0 ? 
-                                                    "bg-white dark:bg-[#0A0A0A]" : 
-                                                    "bg-gray-50 dark:bg-[#0A0A0A]/80"
+                                                    "bg-white dark:bg-[#111111]" : 
+                                                    "bg-gray-50 dark:bg-[#0A0A0A]"
                                                 }
                                                 >
                                                     <TableCell className="font-medium">{item.nama_layanan}</TableCell>
