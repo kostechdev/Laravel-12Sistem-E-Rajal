@@ -26,9 +26,18 @@ const allNavItems: NavItem[] = [
         icon: Users,
     },
     {
-        title: 'Data Layanan',
-        href: '/layanan',
+        title: 'Data Master',
         icon: Database,
+        children: [
+            {
+                title: 'Data Layanan',
+                href: '/layanan',
+            },
+            {
+                title: 'Data Pasien',
+                href: '/pasien',
+            }
+        ]
     },
     {
         title: 'Laporan',

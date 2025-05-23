@@ -41,6 +41,14 @@ interface PopularLayanan extends Layanan {
     transaction_count: number;
 }
 
+interface Pasien {
+    nik: string;
+    nama: string;
+    alamat: string;
+    created_at?: string;
+    updated_at?: string;
+}
+
 interface TransaksiIndexProps {
     transaksi: Transaksi[];
     layanan: Layanan[];
@@ -98,6 +106,22 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
         tanggal: new Date().toISOString()
     });
     const [isInitialized, setIsInitialized] = useState(false);
+    
+    // State untuk pencarian dan pengelolaan pasien
+    const [searchPasien, setSearchPasien] = useState('');
+    const [pasienResults, setPasienResults] = useState<Pasien[]>([]);
+    const [selectedPasien, setSelectedPasien] = useState<Pasien | null>(null);
+    const [isPasienDropdownVisible, setIsPasienDropdownVisible] = useState(false);
+    const pasienDropdownRef = useRef<HTMLDivElement>(null);
+    
+    // State untuk form pendaftaran pasien baru
+    const [showRegisterPasien, setShowRegisterPasien] = useState(false);
+    const [newPasien, setNewPasien] = useState<{
+        nik: string;
+        nama: string;
+        alamat: string;
+    }>({ nik: '', nama: '', alamat: '' });
+    const [registerLoading, setRegisterLoading] = useState(false);
 
 
     useEffect(() => {
@@ -215,6 +239,9 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
         function handleClickOutside(event: MouseEvent) {
             if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
                 setIsSearching(false);
+            }
+            if (pasienDropdownRef.current && !pasienDropdownRef.current.contains(event.target as Node)) {
+                setIsPasienDropdownVisible(false);
             }
         }
         document.addEventListener('mousedown', handleClickOutside);
@@ -401,11 +428,21 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
 
         const paymentInput = parseFloat(totalBayar);
         
-        router.post(route('transaksi.store'), {
+        // Log data yang akan dikirim untuk memudahkan debugging
+        console.log('Sending data to server:', {
             nama_pasien: namaPasien,
+            nik_pasien: selectedPasien?.nik || null,
             layanan_ids: layananIds,
             total_harga: totalHarga,
-            total_bayar: totalHarga,
+            total_bayar: paymentInput
+        });
+        
+        router.post(route('transaksi.store'), {
+            nama_pasien: namaPasien,
+            nik_pasien: selectedPasien?.nik || null,
+            layanan_ids: layananIds,
+            total_harga: totalHarga,
+            total_bayar: paymentInput, // Menggunakan nilai input pengguna, bukan totalHarga
         }, {
             onSuccess: (page) => {
                 setIsProcessing(false);
@@ -531,6 +568,96 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
         { title: 'Transaksi', href: route('transaksi.index') },
     ];
 
+    const handleSearchPasien = debounce(async (query: string) => {
+        if (!query || query.length < 3) {
+            setPasienResults([]);
+            return;
+        }
+
+        try {
+            console.log('Searching for patient:', query);
+            const response = await axios.get(route('transaksi.search-pasien'), {
+                params: { search: query }
+            });
+            console.log('Search response:', response.data);
+            setPasienResults(response.data);
+        } catch (error) {
+            console.error('Error searching patients:', error);
+            toast.error('Gagal mencari data pasien');
+            setPasienResults([]);
+        }
+    }, 300);
+
+    const handleSelectPasien = (pasien: Pasien) => {
+        setSelectedPasien(pasien);
+        setNamaPasien(pasien.nama);
+        setIsPasienDropdownVisible(false);
+    };
+
+    const handleRegisterPasien = async () => {
+        // Validasi data pasien
+        if (!newPasien.nik || newPasien.nik.length !== 16) {
+            toast.error('NIK harus 16 digit');
+            return;
+        }
+
+        if (!newPasien.nama) {
+            toast.error('Nama pasien harus diisi');
+            return;
+        }
+
+        if (!newPasien.alamat) {
+            toast.error('Alamat harus diisi');
+            return;
+        }
+
+        setRegisterLoading(true);
+        try {
+            console.log('Registering patient data:', newPasien);
+            
+            // Gunakan FormData untuk mengirim data
+            const formData = new FormData();
+            formData.append('nik', newPasien.nik);
+            formData.append('nama', newPasien.nama);
+            formData.append('alamat', newPasien.alamat);
+            
+            const response = await axios.post(route('transaksi.register-pasien'), formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+            
+            console.log('Register response:', response.data);
+            
+            if (response.data.success) {
+                setSelectedPasien(response.data.data);
+                setNamaPasien(response.data.data.nama);
+                toast.success('Pasien berhasil didaftarkan');
+                setShowRegisterPasien(false);
+                
+                // Reset form
+                setNewPasien({ nik: '', nama: '', alamat: '' });
+            }
+        } catch (error: any) {
+            console.error('Error registering patient:', error);
+            if (error.response && error.response.data && error.response.data.errors) {
+                // Show validation errors
+                const errors = error.response.data.errors;
+                Object.keys(errors).forEach(key => {
+                    toast.error(errors[key][0]);
+                });
+            } else if (error.response && error.response.data && error.response.data.message) {
+                toast.error(error.response.data.message);
+            } else {
+                toast.error('Gagal mendaftarkan pasien. Silakan coba lagi.');
+            }
+        } finally {
+            setRegisterLoading(false);
+        }
+    };
+
     const handlePrintTransaksi = (transaksi: Transaksi) => {
         const transactionReceiptData = {
             id_transaksi: transaksi.id_transaksi,
@@ -596,17 +723,129 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
                         <Card className="shadow-lg rounded-xl border-primary/20 bg-white dark:bg-[#0A0A0A] relative overflow-hidden card-3d shimmer-effect">
                             <div className="absolute -right-5 -top-5 w-20 h-20 bg-gradient-to-br from-primary/10 to-transparent rounded-full z-0"></div>
                             <CardContent className="p-4 relative z-10">
-                                <div>
-                                    <label htmlFor="nama_pasien" className="block text-sm font-medium mb-1">
-                                        Nama Pasien
-                                    </label>
-                                    <Input
-                                        id="nama_pasien"
-                                        value={namaPasien}
-                                        onChange={(e) => setNamaPasien(e.target.value)}
-                                        placeholder="Masukkan nama pasien"
-                                        className="border-primary/20"
-                                    />
+                                <div className="space-y-4">
+                                    <div>
+                                        <label htmlFor="cari_pasien" className="block text-sm font-medium mb-1">
+                                            Cari Pasien (NIK/Nama)
+                                        </label>
+                                        <div className="relative">
+                                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                id="cari_pasien"
+                                                type="text"
+                                                value={searchPasien}
+                                                onChange={(e) => {
+                                                    setSearchPasien(e.target.value);
+                                                    handleSearchPasien(e.target.value);
+                                                    setIsPasienDropdownVisible(e.target.value.length >= 3);
+                                                }}
+                                                onFocus={() => {
+                                                    if (searchPasien.length >= 3) {
+                                                        setIsPasienDropdownVisible(true);
+                                                    }
+                                                }}
+                                                placeholder="Cari berdasarkan NIK atau nama"
+                                                className="pl-8 border-primary/20"
+                                            />
+                                        </div>
+                                        
+                                        {/* Dropdown hasil pencarian pasien */}
+                                        <div 
+                                            ref={pasienDropdownRef}
+                                            className={`border border-gray-200 dark:border-gray-700 rounded-lg shadow-md max-h-60 overflow-y-auto mt-1 ${!isPasienDropdownVisible ? 'hidden' : ''}`}
+                                        >
+                                            {pasienResults.length === 0 ? (
+                                                <div className="p-4 text-center">
+                                                    <p className="text-muted-foreground">Tidak ada hasil atau ketik minimal 3 karakter</p>
+                                                    <Button 
+                                                        variant="link" 
+                                                        className="mt-2 text-primary" 
+                                                        onClick={() => {
+                                                            setShowRegisterPasien(true);
+                                                            setIsPasienDropdownVisible(false);
+                                                            // Jika input berupa angka dan panjangnya mendekati 16 digit, kemungkinan itu NIK
+                                                            if (/^\d+$/.test(searchPasien) && searchPasien.length > 8) {
+                                                                setNewPasien({
+                                                                    ...newPasien,
+                                                                    nik: searchPasien.slice(0, 16) // Batasi sampai 16 digit
+                                                                });
+                                                            } else {
+                                                                // Jika bukan angka atau kurang dari 8 digit, kemungkinan itu nama
+                                                                setNewPasien({
+                                                                    ...newPasien,
+                                                                    nama: searchPasien
+                                                                });
+                                                            }
+                                                        }}
+                                                    >
+                                                        Daftarkan Pasien Baru
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    {pasienResults.map((pasien) => (
+                                                        <div
+                                                            key={pasien.nik}
+                                                            className="px-4 py-3 hover:bg-gray-100 dark:hover:bg-[#111111] cursor-pointer flex justify-between items-center border-b border-gray-100 dark:border-gray-800 last:border-none"
+                                                            onClick={() => handleSelectPasien(pasien)}
+                                                        >
+                                                            <div>
+                                                                <div className="font-medium text-gray-900 dark:text-white">{pasien.nama}</div>
+                                                                <div className="text-xs text-gray-500 dark:text-gray-400">NIK: {pasien.nik}</div>
+                                                            </div>
+                                                            <Badge variant="outline" className="text-xs bg-primary/10 text-primary">
+                                                                Terdaftar
+                                                            </Badge>
+                                                        </div>
+                                                    ))}
+                                                    <div className="p-2 text-center border-t border-gray-100 dark:border-gray-800">
+                                                        <Button 
+                                                            variant="link" 
+                                                            className="text-primary text-xs" 
+                                                            onClick={() => {
+                                                                setShowRegisterPasien(true);
+                                                                setIsPasienDropdownVisible(false);
+                                                                // Jika input berupa angka dan panjangnya mendekati 16 digit, kemungkinan itu NIK
+                                                                if (/^\d+$/.test(searchPasien) && searchPasien.length > 8) {
+                                                                    setNewPasien({
+                                                                        ...newPasien,
+                                                                        nik: searchPasien.slice(0, 16) // Batasi sampai 16 digit
+                                                                    });
+                                                                } else {
+                                                                    // Jika bukan angka atau kurang dari 8 digit, kemungkinan itu nama
+                                                                    setNewPasien({
+                                                                        ...newPasien,
+                                                                        nama: searchPasien
+                                                                    });
+                                                                }
+                                                            }}
+                                                        >
+                                                            Daftarkan Pasien Baru
+                                                        </Button>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label htmlFor="nama_pasien" className="block text-sm font-medium mb-1">
+                                            Nama Pasien {selectedPasien && <Badge className="ml-2 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">Terdaftar</Badge>}
+                                        </label>
+                                        <Input
+                                            id="nama_pasien"
+                                            value={namaPasien}
+                                            onChange={(e) => {
+                                                setNamaPasien(e.target.value);
+                                                // Jika nama diubah manual, hapus pasien terpilih
+                                                if (selectedPasien && selectedPasien.nama !== e.target.value) {
+                                                    setSelectedPasien(null);
+                                                }
+                                            }}
+                                            placeholder="Masukkan nama pasien"
+                                            className="border-primary/20"
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="space-y-2 mb-4">
@@ -1309,6 +1548,76 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
                             </div>
                         </div>
                     </div>
+                </DialogContent>
+            </Dialog>
+            
+            {/* Dialog pendaftaran pasien baru */}
+            <Dialog open={showRegisterPasien} onOpenChange={setShowRegisterPasien}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold">Daftarkan Pasien Baru</DialogTitle>
+                    </DialogHeader>
+                    <div className="p-4 space-y-4">
+                        <div className="space-y-2">
+                            <label htmlFor="register_nik" className="block text-sm font-medium">
+                                NIK <span className="text-red-500">*</span>
+                            </label>
+                            <Input
+                                id="register_nik"
+                                type="text"
+                                value={newPasien.nik}
+                                onChange={(e) => setNewPasien({...newPasien, nik: e.target.value.replace(/\D/g, '')})}
+                                placeholder="Masukkan 16 digit NIK"
+                                maxLength={16}
+                                className="border-primary/20"
+                            />
+                            <p className="text-xs text-muted-foreground">NIK harus 16 digit angka</p>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <label htmlFor="register_nama" className="block text-sm font-medium">
+                                Nama Lengkap <span className="text-red-500">*</span>
+                            </label>
+                            <Input
+                                id="register_nama"
+                                type="text"
+                                value={newPasien.nama}
+                                onChange={(e) => setNewPasien({...newPasien, nama: e.target.value})}
+                                placeholder="Masukkan nama lengkap"
+                                className="border-primary/20"
+                            />
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <label htmlFor="register_alamat" className="block text-sm font-medium">
+                                Alamat <span className="text-red-500">*</span>
+                            </label>
+                            <textarea
+                                id="register_alamat"
+                                value={newPasien.alamat}
+                                onChange={(e) => setNewPasien({...newPasien, alamat: e.target.value})}
+                                placeholder="Masukkan alamat lengkap"
+                                className="w-full p-2 border border-primary/20 rounded-md min-h-[80px]"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowRegisterPasien(false)}>BATAL</Button>
+                        <Button 
+                            className="bg-primary hover:bg-primary/90"
+                            onClick={handleRegisterPasien}
+                            disabled={registerLoading}
+                        >
+                            {registerLoading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    MEMPROSES...
+                                </>
+                            ) : (
+                                <>DAFTARKAN</>
+                            )}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </AppLayout>

@@ -23,9 +23,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Layanan management routes
     Route::resource('layanan', LayananController::class);
     
+    // Pasien management routes
+    Route::resource('pasien', App\Http\Controllers\Admin\PasienController::class)->names([
+        'index' => 'admin.pasien.index',
+        'create' => 'admin.pasien.create',
+        'store' => 'admin.pasien.store',
+        'edit' => 'admin.pasien.edit',
+        'update' => 'admin.pasien.update',
+        'destroy' => 'admin.pasien.destroy'
+    ])->parameters([
+        'pasien' => 'nik'
+    ]);
+    
     // Transaksi routes
     Route::resource('transaksi', TransaksiController::class);
     Route::get('search-layanan', [TransaksiController::class, 'searchLayanan'])->name('transaksi.search-layanan');
+    Route::get('search-pasien', [TransaksiController::class, 'searchPasien'])->name('transaksi.search-pasien');
+    Route::post('register-pasien', [TransaksiController::class, 'registerPasien'])->name('transaksi.register-pasien');
     
     // Laporan routes
     Route::get('laporan/harian', [LaporanController::class, 'harian'])->name('laporan.harian');

@@ -13,6 +13,7 @@ class transaksi extends Model
         'id_transaksi',
         'id_admin',
         'nama_pasien',
+        'nik_pasien', // Tambahkan field nik_pasien
         'total_harga',
         'total_bayar',
     ];
@@ -28,5 +29,13 @@ class transaksi extends Model
     public function transaksiDetails()
     {
         return $this->hasMany(transaksi_detail::class, 'id_transaksi', 'id_transaksi');
+    }
+    
+    /**
+     * Get the patient data for this transaction
+     */
+    public function pasien()
+    {
+        return $this->belongsTo(Pasien::class, 'nik_pasien', 'nik');
     }
 }
