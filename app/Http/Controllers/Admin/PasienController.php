@@ -50,12 +50,18 @@ class PasienController extends Controller
             'nama.required' => 'Nama pasien harus diisi',
             'nama.max' => 'Nama maksimal 255 karakter',
             'alamat.required' => 'Alamat harus diisi',
+            'tanggal_lahir.required' => 'Tanggal lahir harus diisi',
+            'tanggal_lahir.date' => 'Format tanggal lahir tidak valid',
+            'jenis_kelamin.required' => 'Jenis kelamin harus dipilih',
+            'jenis_kelamin.in' => 'Jenis kelamin tidak valid',
         ];
         
         $validated = $request->validate([
             'nik' => 'required|string|size:16|unique:pasien',
             'nama' => 'required|string|max:255',
             'alamat' => 'required|string',
+            'tanggal_lahir' => 'required|date',
+            'jenis_kelamin' => 'required|string|in:L,P',
         ], $messages);
 
         try {
@@ -92,12 +98,18 @@ class PasienController extends Controller
             'nama.required' => 'Nama pasien harus diisi',
             'nama.max' => 'Nama maksimal 255 karakter',
             'alamat.required' => 'Alamat harus diisi',
+            'tanggal_lahir.required' => 'Tanggal lahir harus diisi',
+            'tanggal_lahir.date' => 'Format tanggal lahir tidak valid',
+            'jenis_kelamin.required' => 'Jenis kelamin harus dipilih',
+            'jenis_kelamin.in' => 'Jenis kelamin tidak valid',
         ];
         
         $validated = $request->validate([
             'nik' => 'required|string|size:16|unique:pasien,nik,' . $nik . ',nik',
             'nama' => 'required|string|max:255',
             'alamat' => 'required|string',
+            'tanggal_lahir' => 'required|date',
+            'jenis_kelamin' => 'required|string|in:L,P',
         ], $messages);
 
         try {
