@@ -34,6 +34,8 @@ interface Pasien {
     nik: string;
     nama: string;
     alamat: string;
+    tanggal_lahir: string;
+    jenis_kelamin: 'L' | 'P';
     created_at: string;
     updated_at: string;
 }
@@ -153,15 +155,17 @@ export default function PasienIndex({ pasien, filters }: PasienIndexProps) {
                                 <TableRow>
                                     <TableHead>NIK</TableHead>
                                     <TableHead>Nama Lengkap</TableHead>
+                                    <TableHead>Tgl Lahir</TableHead>
+                                    <TableHead>Jns Kelamin</TableHead>
                                     <TableHead>Alamat</TableHead>
-                                    <TableHead>Tanggal Registrasi</TableHead>
+                                    <TableHead>Tgl Registrasi</TableHead>
                                     <TableHead className="text-right">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {pasien.data.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center">
+                                        <TableCell colSpan={7} className="text-center">
                                             Tidak ada data pasien
                                         </TableCell>
                                     </TableRow>
@@ -170,6 +174,8 @@ export default function PasienIndex({ pasien, filters }: PasienIndexProps) {
                                         <TableRow key={item.nik}>
                                             <TableCell className="font-medium">{item.nik}</TableCell>
                                             <TableCell>{item.nama}</TableCell>
+                                            <TableCell>{new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(item.tanggal_lahir))}</TableCell>
+                                            <TableCell>{item.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</TableCell>
                                             <TableCell>{item.alamat}</TableCell>
                                             <TableCell>{formatDate(item.created_at)}</TableCell>
                                             <TableCell className="text-right space-x-2">
