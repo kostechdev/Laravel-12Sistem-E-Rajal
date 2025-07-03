@@ -17,6 +17,8 @@ class Pasien extends Model
     protected $fillable = [
         'nik',
         'nama',
-        'alamat'
+        'alamat',
+        'tanggal_lahir',
+        'jenis_kelamin'
     ];
 }
