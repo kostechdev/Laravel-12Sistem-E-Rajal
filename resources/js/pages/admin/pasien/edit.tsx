@@ -19,6 +19,8 @@ interface Pasien {
     nik: string;
     nama: string;
     alamat: string;
+    tanggal_lahir: string;
+    jenis_kelamin: 'L' | 'P';
 }
 
 interface PasienEditProps {
@@ -30,6 +32,8 @@ export default function PasienEdit({ pasien }: PasienEditProps) {
         nik: pasien.nik,
         nama: pasien.nama,
         alamat: pasien.alamat,
+        tanggal_lahir: pasien.tanggal_lahir,
+        jenis_kelamin: pasien.jenis_kelamin,
     });
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -96,6 +100,38 @@ export default function PasienEdit({ pasien }: PasienEditProps) {
                                 {errors.nama && (
                                     <p className="text-red-500 text-sm mt-1">{errors.nama}</p>
                                 )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="tanggal_lahir">Tanggal Lahir</Label>
+                                    <Input
+                                        id="tanggal_lahir"
+                                        type="date"
+                                        value={data.tanggal_lahir}
+                                        onChange={(e) => setData('tanggal_lahir', e.target.value)}
+                                        className={errors.tanggal_lahir ? 'border-red-500' : ''}
+                                    />
+                                    {errors.tanggal_lahir && (
+                                        <p className="text-red-500 text-sm mt-1">{errors.tanggal_lahir}</p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="jenis_kelamin">Jenis Kelamin</Label>
+                                    <select
+                                        id="jenis_kelamin"
+                                        value={data.jenis_kelamin}
+                                        onChange={(e) => setData('jenis_kelamin', e.target.value as 'L' | 'P')}
+                                        className={`flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${errors.jenis_kelamin ? 'border-red-500' : ''}`}
+                                    >
+                                        <option value="">Pilih Jenis Kelamin</option>
+                                        <option value="L">Laki-laki</option>
+                                        <option value="P">Perempuan</option>
+                                    </select>
+                                    {errors.jenis_kelamin && (
+                                        <p className="text-red-500 text-sm mt-1">{errors.jenis_kelamin}</p>
+                                    )}
+                                </div>
                             </div>
                             
                             <div className="space-y-2">
