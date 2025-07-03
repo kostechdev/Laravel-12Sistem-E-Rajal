@@ -292,34 +292,31 @@ export const generateReceiptHtml = ({ logoKiri, logoKanan, dayName, formattedDat
                         <th width="10%">JASPEL</th>
                         <th width="10%">Total</th>
                     </tr>
-                    <tr>
-                        <td rowspan="${Math.max(receiptData.layanan.length, 1)}">
-                            ${dayName}<br>
-                            ${formattedDate}
-                        </td>
-                        <td rowspan="${Math.max(receiptData.layanan.length, 1)}">
-                            ${receiptData.nama_pasien}
-                        </td>
-                        ${receiptData.layanan && receiptData.layanan.length > 0 ? `
-                        <td>${receiptData.layanan[0].nama_layanan}</td>
-                        <td class="right-align">${formatRupiah(receiptData.layanan[0].total_harga * 0.4).replace('Rp', '')}</td>
-                        <td class="right-align">${formatRupiah(receiptData.layanan[0].total_harga * 0.6).replace('Rp', '')}</td>
-                        <td class="right-align">${formatRupiah(receiptData.layanan[0].total_harga).replace('Rp', '')}</td>
-                        ` : `
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        `}
-                    </tr>
-                    ${receiptData.layanan && receiptData.layanan.slice(1).map((item: any) => `
-                        <tr>
+                    ${receiptData.layanan && receiptData.layanan.length > 0 ? 
+                    receiptData.layanan.map((item: any, index: number) => `
+                        <tr ${index === 0 ? `class="first-row"` : ``}>
+                            ${index === 0 ? 
+                            `<td rowspan="${Math.max(receiptData.layanan.length, 1)}">
+                                ${dayName}<br>
+                                ${formattedDate}
+                            </td>
+                            <td rowspan="${Math.max(receiptData.layanan.length, 1)}">
+                                ${receiptData.nama_pasien}
+                            </td>` : ''}
                             <td>${item.nama_layanan}</td>
                             <td class="right-align">${formatRupiah(item.total_harga * 0.4).replace('Rp', '')}</td>
                             <td class="right-align">${formatRupiah(item.total_harga * 0.6).replace('Rp', '')}</td>
                             <td class="right-align">${formatRupiah(item.total_harga).replace('Rp', '')}</td>
                         </tr>
-                    `).join('')}
+                    `).join('') : 
+                    `<tr>
+                        <td>${dayName}<br>${formattedDate}</td>
+                        <td>${receiptData.nama_pasien}</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>`}
                     <tr class="total-row">
                         <td colspan="5" class="right-align">JUMLAH</td>
                         <td class="right-align">${formatRupiah(receiptData.total_harga).replace('Rp', '')}</td>

@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\transaksi;
-use App\Models\transaksi_detail;
-use App\Models\layanan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -34,53 +32,32 @@ class LaporanController extends Controller
 
         $date = $request->date;
 
-        $transactions = transaksi::whereDate('created_at', $date)->get();
-        $transactionIds = $transactions->pluck('id_transaksi')->toArray();
-
-        if (empty($transactionIds)) {
-            $layananStats = DB::table('layanan')
-                ->select(
-                    'layanan.id_layanan',
-                    'layanan.nama_layanan',
-                    DB::raw('0 as jumlah_transaksi'),
-                    'layanan.total_harga as harga',
-                    DB::raw('0 as total')
-                )
-                ->orderBy('layanan.id_layanan', 'asc')
-                ->get();
-                
-            return response()->json([
-                'layananStats' => $layananStats,
-                'totalTransactions' => 0,
-                'totalAmount' => 0,
-                'tanggal' => $date,
-                'date' => $date
-            ]);
-        }
-
-        $layananStats = DB::table('transaksi_detail')
+        $layananStats = DB::table('layanan')
             ->select(
                 'layanan.id_layanan',
                 'layanan.nama_layanan',
-                DB::raw('COUNT(DISTINCT transaksi_detail.id_transaksi) as jumlah_transaksi'),
+                DB::raw('COUNT(transaksi.id_transaksi) as jumlah_transaksi'),
                 'layanan.total_harga as harga',
-                DB::raw('COUNT(DISTINCT transaksi_detail.id_transaksi) * layanan.total_harga as total')
+                DB::raw('COALESCE(COUNT(transaksi.id_transaksi) * layanan.total_harga, 0) as total')
             )
-            ->join('transaksi', 'transaksi_detail.id_transaksi', '=', 'transaksi.id_transaksi')
-            ->join('layanan', 'transaksi_detail.id_layanan', '=', 'layanan.id_layanan')
-            ->whereDate('transaksi.created_at', $date)
+            ->leftJoin('transaksi_detail', 'layanan.id_layanan', '=', 'transaksi_detail.id_layanan')
+            ->leftJoin('transaksi', function($join) use ($date) {
+                $join->on('transaksi_detail.id_transaksi', '=', 'transaksi.id_transaksi')
+                     ->whereDate('transaksi.created_at', '=', $date);
+            })
             ->groupBy('layanan.id_layanan', 'layanan.nama_layanan', 'layanan.total_harga')
             ->orderBy('layanan.id_layanan', 'asc')
             ->get();
 
-        $totalTransactions = count($transactionIds);
+        $totalTransactions = transaksi::whereDate('created_at', $date)->count();
         $totalAmount = $layananStats->sum('total');
 
         return response()->json([
             'layananStats' => $layananStats,
             'totalTransactions' => $totalTransactions,
             'totalAmount' => $totalAmount,
-            'tanggal' => $date
+            'tanggal' => $date,
+            'date' => $date
         ]);
     }
 
@@ -108,7 +85,7 @@ class LaporanController extends Controller
                 )
                 ->orderBy('layanan.id_layanan', 'asc')
                 ->get();
-                
+
             return response()->json([
                 'layananStats' => $layananStats,
                 'totalTransactions' => 0,
@@ -174,7 +151,7 @@ class LaporanController extends Controller
                 )
                 ->orderBy('layanan.id_layanan', 'asc')
                 ->get();
-                
+
             return response()->json([
                 'layananStats' => $layananStats,
                 'totalTransactions' => 0,

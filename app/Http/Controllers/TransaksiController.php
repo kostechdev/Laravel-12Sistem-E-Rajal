@@ -20,32 +20,24 @@ class TransaksiController extends Controller
         $transaksiCollection = transaksi::with(['transaksiDetails.layanan', 'pasien'])->latest()->get();
         
         $transaksi = $transaksiCollection->map(function($item) {
+            $namaPasien = $item->pasien ? $item->pasien->nama : $item->nama_pasien;
+
             $details = $item->transaksiDetails->map(function($detail) {
-                $layanan = layanan::find($detail->id_layanan);
-                
                 return [
                     'id_transaksi_detail' => $detail->id_transaksi_detail,
                     'id_transaksi' => $detail->id_transaksi,
                     'id_layanan' => $detail->id_layanan,
                     'created_at' => $detail->created_at,
                     'updated_at' => $detail->updated_at,
-                    'layanan' => $layanan ? [
-                        'id_layanan' => $layanan->id_layanan,
-                        'nama_layanan' => $layanan->nama_layanan,
-                        'trf_kunjungan' => $layanan->trf_kunjungan,
-                        'layanan_dokter' => $layanan->layanan_dokter,
-                        'layanan_tindakan' => $layanan->layanan_tindakan,
-                        'total_harga' => $layanan->total_harga,
-                        'created_at' => $layanan->created_at,
-                        'updated_at' => $layanan->updated_at,
-                    ] : null
+                    'layanan' => $detail->layanan
                 ];
             });
             
             return [
                 'id_transaksi' => $item->id_transaksi,
                 'id_admin' => $item->id_admin,
-                'nama_pasien' => $item->nama_pasien,
+                'nama_pasien' => $namaPasien,
+                'pasien' => $item->pasien,
                 'total_harga' => $item->total_harga,
                 'total_bayar' => $item->total_bayar,
                 'created_at' => $item->created_at,
@@ -288,6 +280,76 @@ class TransaksiController extends Controller
         }
     }
     
+    /**
+     * Update the specified transaction in storage.
+     */
+    public function update(Request $request, $id)
+    {
+        $messages = [
+            'layanan_ids.required' => 'Layanan harus dipilih',
+            'total_bayar.required' => 'Nominal bayar harus diisi',
+            'total_bayar.numeric' => 'Nominal bayar harus berupa angka',
+        ];
+        
+        $request->validate([
+            'layanan_ids' => 'required|array',
+            'layanan_ids.*' => 'exists:layanan,id_layanan',
+            'total_harga' => 'required|numeric',
+            'total_bayar' => 'required|numeric',
+        ], $messages);
+
+        \Log::info('Mencoba memperbarui transaksi', [
+            'id_transaksi' => $id,
+            'request_data' => $request->all()
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $transaksi = transaksi::findOrFail($id);
+            
+            $transaksi->total_harga = $request->total_harga;
+            $transaksi->total_bayar = $request->total_bayar;
+            $transaksi->save();
+            
+            transaksi_detail::where('id_transaksi', $id)->delete();
+            
+            $detailsSaved = 0;
+            foreach ($request->layanan_ids as $layanan_id) {
+                $detail = new transaksi_detail();
+                $detail->id_transaksi = $transaksi->id_transaksi;
+                $detail->id_layanan = $layanan_id;
+                
+                if ($detail->save()) {
+                    $detailsSaved++;
+                }
+            }
+            
+            if ($detailsSaved === 0) {
+                throw new \Exception('Transaksi diperbarui tetapi tidak ada detail yang tersimpan');
+            }
+
+            DB::commit();
+            
+            \Log::info('Transaksi berhasil diperbarui', [
+                'id_transaksi' => $transaksi->id_transaksi,
+            ]);
+            
+            return redirect()->route('transaksi.index')
+                ->with('success', 'Transaksi berhasil diperbarui');
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            \Log::error('Transaksi gagal diperbarui: ' . $e->getMessage(), [
+                'exception' => $e,
+                'request_data' => $request->all()
+            ]);
+            
+            return redirect()->route('transaksi.index')
+                ->with('error', 'Transaksi gagal diperbarui: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Remove the specified transaction from storage.
      */

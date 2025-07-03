@@ -3,11 +3,10 @@ import { Head } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, Printer } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Printer } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, getYear, setMonth } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Calendar } from '@/components/ui/calendar';
 import {
   Popover,
   PopoverContent,
@@ -36,9 +35,10 @@ interface ReportData {
 }
 
 const ReportBulananPage = () => {
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [date, setDate] = useState<Date>(new Date());
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
 
   const fetchReport = async () => {
     if (!date) {
@@ -162,70 +162,108 @@ const ReportBulananPage = () => {
               </h1>
               
               <div className="flex space-x-3">
-                <Popover>
+                <Popover open={monthPickerOpen} onOpenChange={setMonthPickerOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className={cn(
-                        "justify-start text-left font-normal border-primary/20",
-                        !date && "text-muted-foreground"
-                      )}
+                      className="justify-start text-left font-normal border-primary/20 w-[180px]"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {getMonthDisplay()}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={(newDate) => {
-                        setDate(newDate);
-                        if (newDate) {
-                          // Clear any existing report data when selecting a new date
-                          setReportData(null);
+                  <PopoverContent className="w-auto p-4" align="start">
+                    <div className="flex flex-col space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">Pilih Bulan</h4>
+                        <div className="flex items-center space-x-1">
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className="h-7 w-7"
+                            onClick={() => setDate(prevDate => {
+                              const newDate = new Date(prevDate);
+                              newDate.setFullYear(newDate.getFullYear() - 1);
+                              return newDate;
+                            })}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <div className="w-[4ch] text-center">{getYear(date)}</div>
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className="h-7 w-7"
+                            onClick={() => setDate(prevDate => {
+                              const newDate = new Date(prevDate);
+                              newDate.setFullYear(newDate.getFullYear() + 1);
+                              return newDate;
+                            })}
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-2 py-2">
+                        {Array.from({ length: 12 }, (_, i) => {
+                          const monthDate = new Date();
+                          monthDate.setMonth(i);
+                          const monthName = format(monthDate, 'MMM', { locale: id });
+                          const isSelected = i === date.getMonth();
                           
-                          setTimeout(() => {
-                            setIsLoading(true);
-                            const month = newDate.getMonth() + 1; // JavaScript months are 0-indexed
-                            const year = newDate.getFullYear();
-                            
-                            console.log('Fetching monthly report for:', year, 'month:', month);
-                            
-                            axios.get('/api/laporan/bulanan', {
-                              params: {
-                                month: month,
-                                year: year,
-                              },
-                            })
-                            .then(response => {
-                              console.log('Monthly report data received:', response.data);
-                              const monthStart = startOfMonth(newDate);
-                              const monthEnd = endOfMonth(newDate);
-                              
-                              const startDateFormatted = format(monthStart, 'yyyy-MM-dd');
-                              const endDateFormatted = format(monthEnd, 'yyyy-MM-dd');
-                              
-                              setReportData({
-                                ...response.data,
-                                startDate: startDateFormatted,
-                                endDate: endDateFormatted
-                              });
-                              toast.success('Data laporan berhasil dimuat');
-                            })
-                            .catch(error => {
-                              console.error('Error fetching monthly report:', error, 'Month:', month, 'Year:', year);
-                              toast.error('Gagal mengambil data laporan bulanan');
-                            })
-                            .finally(() => {
-                              setIsLoading(false);
-                            });
-                          }, 100);
-                        }
-                      }}
-                      initialFocus
-                      locale={id}
-                    />
+                          return (
+                            <Button
+                              key={i}
+                              variant={isSelected ? "default" : "outline"}
+                              className={cn("h-9 w-full capitalize", 
+                                isSelected ? "bg-primary" : "hover:bg-primary/10"
+                              )}
+                              onClick={() => {
+                                const newDate = new Date(date);
+                                newDate.setMonth(i);
+                                setDate(newDate);
+                                setMonthPickerOpen(false);
+                                
+                                // Fetch data for the selected month
+                                const month = i + 1; // JavaScript months are 0-indexed
+                                const year = newDate.getFullYear();
+                                
+                                setIsLoading(true);
+                                setReportData(null);
+                                
+                                axios.get('/api/laporan/bulanan', {
+                                  params: { month, year }
+                                })
+                                .then(response => {
+                                  const monthStart = startOfMonth(newDate);
+                                  const monthEnd = endOfMonth(newDate);
+                                  
+                                  const startDateFormatted = format(monthStart, 'yyyy-MM-dd');
+                                  const endDateFormatted = format(monthEnd, 'yyyy-MM-dd');
+                                  
+                                  setReportData({
+                                    ...response.data,
+                                    startDate: startDateFormatted,
+                                    endDate: endDateFormatted
+                                  });
+                                  toast.success('Data laporan berhasil dimuat');
+                                })
+                                .catch(error => {
+                                  console.error('Error fetching monthly report:', error, 'Month:', month, 'Year:', year);
+                                  toast.error('Gagal mengambil data laporan bulanan');
+                                })
+                                .finally(() => {
+                                  setIsLoading(false);
+                                });
+                              }}
+                            >
+                              {monthName}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </PopoverContent>
                 </Popover>
                 
