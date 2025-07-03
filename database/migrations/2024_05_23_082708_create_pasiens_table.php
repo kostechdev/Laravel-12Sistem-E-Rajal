@@ -12,6 +12,8 @@ return new class extends Migration
             $table->string('nik', 16)->primary();
             $table->string('nama');
             $table->text('alamat');
+            $table->date('tanggal_lahir');
+            $table->enum('jenis_kelamin', ['L', 'P']);
             $table->timestamps();
         });
     }
